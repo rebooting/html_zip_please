@@ -1,0 +1,97 @@
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="description" content="javascript clientside aes zip">
+        <meta name="author" content="Alvin">
+        <script src="wasm_exec.js"></script>
+        
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    </head>
+    <body>
+        <h3>AES Zip please</h3>
+        <div class="input-group">
+        <span class="input-group-addon" >Password</span>
+        <input type="password" id="password" />
+        </div>
+        
+        <input id="plainFile" name="File to Zip" type="file">
+        
+        
+        <br>
+
+        <button id="zip" onclick="MakeZip()">Download Zip</button>
+        <div>client side script to create AES encrypted zip file</div>
+        <div>Made for personal use. Will link to code soon.</div>
+        <div>It uses golang WASM with Alex Mullins' go libary</div> 
+        <a href="https://github.com/alexmullins/zip">https://github.com/alexmullins/zip</a>
+        
+    </body>
+<script>
+
+    var isReady = false;
+    const go = new Go();
+    let mod, inst;
+    WebAssembly.instantiateStreaming(fetch("run.wasm"), go.importObject).then(
+        async result => {
+            mod = result.module;
+            inst = result.instance;
+            await go.run(inst);
+            isReady = true;
+        }
+    );
+
+
+    function saveByteArray(zipName, byte) {
+
+        var blob = new Blob([byte], {type: "application/zip"});
+        var link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        var fileName = zipName;
+        link.download = fileName;
+        link.click();
+    };
+
+    function base64ToArrayBuffer(base64) {
+    var binaryString = atob(base64);
+    var binaryLen = binaryString.length;
+    var bytes = new Uint8Array(binaryLen);
+    for (var i = 0; i < binaryLen; i++) {
+       var ascii = binaryString.charCodeAt(i);
+       bytes[i] = ascii;
+    }
+    return bytes;
+    }
+
+
+    function MakeZip(){
+        let oFile = document.getElementById("plainFile").files[0];
+        let password = document.getElementById("password").value;
+        if (oFile === undefined ){
+            alert("No file selected.");
+            return;
+        }
+        if (password === ""){
+            alert("No password entered.");
+            return;
+        }
+        console.log(oFile);
+
+        const reader = new FileReader();
+        reader.readAsDataURL(oFile);
+        reader.onload = function(e) {
+            let fileContent = e.target.result.split("base64,");
+            if (fileContent[1] === undefined){
+                alert("No valid content");
+                return;
+            }
+            
+            let encryptedZip = JSZip(fileContent[1],oFile.name,password)
+            let barray = base64ToArrayBuffer(encryptedZip);
+            downloadName = oFile.name + ".zip";
+            saveByteArray(downloadName,barray);
+        }
+    }
+</script>
+</html>
